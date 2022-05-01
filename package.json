@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/andersquist/serverless-remix"
+    "url": "git://github.com/andersquist/serverless-remix"
   },
   "bugs": {
     "url": "https://github.com/andersquist/serverless-remix"
