@@ -1,0 +1,17 @@
+{
+  "exclude": ["__tests__", "node_modules", "playground"],
+  "compilerOptions": {
+    "lib": ["ES2019", "DOM", "DOM.Iterable"],
+    "target": "ES2019",
+
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+
+    "declaration": true,
+    "emitDeclarationOnly": true,
+
+    "outDir": "dist",
+    "rootDir": "."
+  }
+}

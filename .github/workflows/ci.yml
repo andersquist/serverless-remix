@@ -1,0 +1,33 @@
+name: ci
+on:
+  workflow_dispatch:
+    branches:
+      - main
+      - next
+      - beta
+  pull_request:
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '14.x'
+      - uses: c-hive/gha-yarn-cache@v2
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn jest
+      - run: yarn clean && yarn build
+      - name: release
+        if: contains('
+        refs/heads/main
+        refs/heads/next
+        refs/heads/beta
+      ', github.ref)
+        run: yarn semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
