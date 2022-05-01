@@ -22,11 +22,7 @@ jobs:
       - run: yarn jest
       - run: yarn clean && yarn build
       - name: release
-        if: contains('
-        refs/heads/main
-        refs/heads/next
-        refs/heads/beta
-      ', github.ref)
+        if: contains('refs/heads/main refs/heads/next refs/heads/beta', github.ref)
         run: yarn semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
