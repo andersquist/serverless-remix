@@ -1,9 +1,15 @@
+import type {
+  AppLoadContext,
+  ServerBuild,
+  RequestInit as NodeRequestInit,
+  Response as NodeResponse,
+} from "@remix-run/node";
 import {
-  // This has been added as a global in node 15+
-  AbortController,
+  AbortController as NodeAbortController,
   Headers as NodeHeaders,
   Request as NodeRequest,
   createRequestHandler as createRemixRequestHandler,
+  readableStreamToString,
 } from "@remix-run/node";
 import type {
   APIGatewayProxyEventMultiValueHeaders,
@@ -11,11 +17,6 @@ import type {
   APIGatewayProxyHandler,
   APIGatewayProxyResult,
 } from "aws-lambda";
-import type {
-  AppLoadContext,
-  ServerBuild,
-  Response as NodeResponse,
-} from "@remix-run/node";
 
 import { isBinaryType } from "./binaryTypes";
 
@@ -49,27 +50,21 @@ export function createRequestHandler({
 }): RequestHandler {
   let handleRequest = createRemixRequestHandler(build, mode);
 
-  return async (event /*, context*/) => {
-    let abortController = new AbortController();
-    let request = createRemixRequest(event, abortController, stagePrefix);
-    let loadContext =
-      typeof getLoadContext === "function" ? getLoadContext(event) : undefined;
+  return async (event) => {
+    let request = createRemixRequest(event, stagePrefix);
+    let loadContext = getLoadContext?.(event);
 
-    let response = (await handleRequest(
-      request as unknown as Request,
-      loadContext
-    )) as unknown as NodeResponse;
+    let response = (await handleRequest(request, loadContext)) as NodeResponse;
 
-    return sendRemixResponse(response, abortController);
+    return sendRemixResponse(response);
   };
 }
 
 export function createRemixRequest(
   event: APIGatewayProxyEvent,
-  abortController?: AbortController,
   stagePrefix?: boolean
 ): NodeRequest {
-  console.log(event);
+  // console.log(event);
   // Either we're exposed on the API Gateway stage path /dev, /prod etc or
   // at the root path if using a custom domain
   let { path } = stagePrefix ? event.requestContext : event;
@@ -80,7 +75,7 @@ export function createRemixRequest(
   let search = new URLSearchParams(
     (event.multiValueQueryStringParameters as any) || {}
   ).toString();
-  let scheme = process.env.ARC_SANDBOX ? "http" : "https";
+  let scheme = process.env.IS_OFFLINE ? "http" : "https";
   let url = new URL(
     `${path}${search ? "?" + search : ""}`,
     `${scheme}://${host}`
@@ -89,17 +84,20 @@ export function createRemixRequest(
     "multipart/form-data"
   );
 
+  // Note: No current way to abort these for Architect, but our router expects
+  // requests to contain a signal so it can detect aborted requests
+  let controller = new NodeAbortController();
+
   return new NodeRequest(url.href, {
     method: event.httpMethod,
     headers: createRemixHeaders(event.multiValueHeaders),
+    signal: controller.signal as NodeRequestInit["signal"],
     body:
       event.body && event.isBase64Encoded
         ? isFormData
           ? Buffer.from(event.body, "base64")
           : Buffer.from(event.body, "base64").toString()
-        : event.body ?? undefined,
-    abortController,
-    signal: abortController?.signal,
+        : event.body,
   });
 }
 
@@ -120,12 +118,11 @@ export function createRemixHeaders(
 }
 
 export async function sendRemixResponse(
-  nodeResponse: NodeResponse,
-  abortController: AbortController
+  nodeResponse: NodeResponse
 ): Promise<APIGatewayProxyResult> {
   let cookies: string[] = [];
 
-  // Arc/AWS API Gateway will send back set-cookies outside of response headers.
+  // AWS API Gateway will send back set-cookies outside of response headers.
   for (let [key, values] of Object.entries(nodeResponse.headers.raw())) {
     if (key.toLowerCase() === "set-cookie") {
       for (let value of values) {
@@ -138,21 +135,16 @@ export async function sendRemixResponse(
     nodeResponse.headers.delete("Set-Cookie");
   }
 
-  if (abortController.signal.aborted) {
-    nodeResponse.headers.set("Connection", "close");
-  }
-
   let contentType = nodeResponse.headers.get("Content-Type");
-  let isBinary = isBinaryType(contentType);
-  let body;
-  let isBase64Encoded = false;
+  let isBase64Encoded = isBinaryType(contentType);
+  let body: string = "";
 
-  if (isBinary) {
-    let blob = await nodeResponse.arrayBuffer();
-    body = Buffer.from(blob).toString("base64");
-    isBase64Encoded = true;
-  } else {
-    body = await nodeResponse.text();
+  if (nodeResponse.body) {
+    if (isBase64Encoded) {
+      body = await readableStreamToString(nodeResponse.body, "base64");
+    } else {
+      body = await nodeResponse.text();
+    }
   }
 
   return {
