@@ -16,7 +16,7 @@ Architect template and then do some modifications.
 Add these dependencies:
 
 ```
-yarn add remix-serverless
+yarn add serverless-remix
 yarn add -D serverless serverless-apigateway-service-proxy serverless-s3-sync
 ```
 
