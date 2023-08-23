@@ -23,7 +23,7 @@ yarn add -D serverless serverless-apigateway-service-proxy serverless-s3-sync
 Modify the `server.js` file in the root:
 
 ```js
-import { createRequestHandler } from "remix-serverless";
+import { createRequestHandler } from "serverless-remix";
 import * as build from "@remix-run/dev/server-build";
 
 export const handler = createRequestHandler({
