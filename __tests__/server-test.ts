@@ -15,7 +15,7 @@ import {
 } from "../server";
 
 // We don't want to test that the remix server works here (that's what the
-// puppetteer tests do), we just want to test the adapter
+// playwright tests do), we just want to test the adapter
 jest.mock("@remix-run/node", () => {
   let original = jest.requireActual("@remix-run/node");
   return {
@@ -157,6 +157,38 @@ describe("serverless createRequestHandler", () => {
         .expectResolve((res) => {
           expect(res.statusCode).toBe(200);
           expect(res.body).toBe("URL: /foo/bar");
+        });
+    });
+
+    it("handles root // requests", async () => {
+      mockedCreateRequestHandler.mockImplementation(() => async (req) => {
+        return new Response(`URL: ${new URL(req.url).pathname}`);
+      });
+
+      // We don't have a real app to test, but it doesn't matter. We won't ever
+      // call through to the real createRequestHandler
+      // @ts-expect-error
+      await lambdaTester(createRequestHandler({ build: undefined }))
+        .event(createMockEvent({ path: "//" }))
+        .expectResolve((res) => {
+          expect(res.statusCode).toBe(200);
+          expect(res.body).toBe("URL: //");
+        });
+    });
+
+    it("handles nested // requests", async () => {
+      mockedCreateRequestHandler.mockImplementation(() => async (req) => {
+        return new Response(`URL: ${new URL(req.url).pathname}`);
+      });
+
+      // We don't have a real app to test, but it doesn't matter. We won't ever
+      // call through to the real createRequestHandler
+      // @ts-expect-error
+      await lambdaTester(createRequestHandler({ build: undefined }))
+        .event(createMockEvent({ path: "//foo//bar" }))
+        .expectResolve((res) => {
+          expect(res.statusCode).toBe(200);
+          expect(res.body).toBe("URL: //foo//bar");
         });
     });
 
@@ -367,6 +399,7 @@ describe("serverless createRemixRequest", () => {
           "type": null,
         },
         Symbol(Request internals): Object {
+          "credentials": "same-origin",
           "headers": Headers {
             Symbol(query): Array [
               "accept",

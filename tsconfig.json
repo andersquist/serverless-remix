@@ -1,17 +1,17 @@
 {
+  "include": ["**/*.ts"],
   "exclude": ["__tests__", "node_modules", "playground"],
   "compilerOptions": {
-    "lib": ["ES2019", "DOM", "DOM.Iterable"],
+    "lib": ["ES2019", "DOM.Iterable"],
     "target": "ES2019",
+    "skipLibCheck": true,
 
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "strict": true,
-
     "declaration": true,
     "emitDeclarationOnly": true,
-
-    "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "outDir": "dist"
   }
 }

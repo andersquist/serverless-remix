@@ -1,4 +1,4 @@
-# Remix Serverless
+# Serverless Remix
 
 An adapter to use Remix with the Serverless framework as an alternative to the built-in Architect framework adapter that is included with Remix.
 
