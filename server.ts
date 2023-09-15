@@ -64,7 +64,7 @@ export function createRemixRequest(
   event: APIGatewayProxyEvent,
   stagePrefix?: boolean
 ): NodeRequest {
-  // console.log(event);
+  console.log(event);
   // Either we're exposed on the API Gateway stage path /dev, /prod etc or
   // at the root path if using a custom domain
   let { path } = stagePrefix ? event.requestContext : event;
@@ -72,14 +72,13 @@ export function createRemixRequest(
     Object.entries(event.headers).map(([k, v]) => [k.toLowerCase(), v])
   );
   let host = lowerCaseHeaders["x-forwarded-host"] || lowerCaseHeaders.host;
-  let search = new URLSearchParams(
-    (event.multiValueQueryStringParameters as any) || {}
-  ).toString();
+  let search = event.multiValueQueryStringParameters
+    ? `?${new URLSearchParams(
+        (event.multiValueQueryStringParameters as any) || {}
+      ).toString()}`
+    : "";
   let scheme = process.env.IS_OFFLINE ? "http" : "https";
-  let url = new URL(
-    `${path}${search ? "?" + search : ""}`,
-    `${scheme}://${host}`
-  );
+  let url = new URL(`${scheme}://${host}${path}${search}`);
   let isFormData = lowerCaseHeaders["content-type"]?.includes(
     "multipart/form-data"
   );
